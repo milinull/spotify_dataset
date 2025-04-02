@@ -2,6 +2,7 @@ import os
 import sys
 import django
 import csv
+import re
 from datetime import datetime
 
 # Garante que o Django encontre o projeto
@@ -12,38 +13,57 @@ django.setup()
 from api_charts.models import SpotifyChart
 
 # Caminho do CSV
-CSV_FILE_PATH = "../data_csv/spotify_charts_2025-03-24.csv"
+CSV_FILE_PATH = "../data_csv/processed/spotify_charts_2025-03-31_processed.csv"
 
 # Definir uma data padrão para os dados importados (já que não existe no CSV)
 CHART_DATE = datetime.strptime("2025-03-24", "%Y-%m-%d").date()
 
 def limpar_numero(valor):
-    """ Remove vírgulas e converte para inteiro, tratando valores vazios """
-    if valor and valor.strip():  # Verifica se o valor não está vazio
-        return int(valor.replace(',', ''))
-    return None
+    """ Remove vírgulas, sinais e converte para inteiro, tratando valores vazios """
+    if not valor or not valor.strip():
+        return None
+    
+    valor_limpo = valor.replace(',', '').replace('"', '').replace('+', '')
+    
+    try:
+        return int(valor_limpo)
+    except ValueError:
+        return None
+
+def extrair_multiplier(valor):
+    """ Converte diretamente para inteiro, tratando valores vazios """
+    if not valor or not valor.strip():
+        return None
+    try:
+        return int(valor)  # Converte diretamente para inteiro
+    except ValueError:
+        return None
+
 
 def importar_csv():
     with open(CSV_FILE_PATH, newline='', encoding='utf-8') as csvfile:
         reader = csv.DictReader(csvfile)
-
-        # Mapeando os nomes das colunas corretamente
         count = 0
         for row in reader:
             try:
+                multiplier_value = extrair_multiplier(row.get('Multiplier'))
+                print(f"Multiplier processado: {row.get('Multiplier')} -> {multiplier_value}")  # Debug
+                
                 SpotifyChart.objects.update_or_create(
                     position=int(row['Position']),
                     chart_date=CHART_DATE,  # Definindo a data manualmente
                     defaults={
                         'change': row['Change'],
-                        'artist_title': row['Artist and Title'],  # Nome corrigido
+                        'artist': row['Artist'],
+                        'title': row['Title'],
+                        'feat_artist': row['Feat Artist'] if row['Feat Artist'] and row['Feat Artist'].strip() else None,
                         'days': int(row['Days']),
                         'peak': int(row['Peak']),
-                        'multiplier': row.get('Multiplier', None),
+                        'multiplier': multiplier_value,
                         'streams': limpar_numero(row['Streams']),
-                        'streams_change': row['Streams Change'] if row['Streams Change'].strip() else "",
-                        'week_streams': limpar_numero(row['7-Day Streams']),  # Nome corrigido
-                        'week_streams_change': limpar_numero(row['7-Day Change']),  # Nome corrigido
+                        'streams_change': limpar_numero(row['Streams Change']),
+                        'week_streams': limpar_numero(row['7-Day Streams']),
+                        'week_streams_change': limpar_numero(row['7-Day Change']),
                         'total_streams': limpar_numero(row['Total Streams']),
                     }
                 )
