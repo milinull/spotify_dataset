@@ -101,6 +101,7 @@ def get_spotify_charts():
 def process_csv(input_filepath, output_filepath):
     """
     Lê o arquivo CSV original, separa artista e título, e salva um novo CSV formatado.
+    Converte as colunas Multiplier, Streams Change e 7-Day Change para valores numéricos.
     """
     with open(input_filepath, mode="r", encoding="utf-8") as infile, \
          open(output_filepath, mode="w", newline="", encoding="utf-8") as outfile:
@@ -122,8 +123,23 @@ def process_csv(input_filepath, output_filepath):
             artist_title = row[2]  # Coluna "Artist and Title"
             artist, title, feat_artist = split_artist_title(artist_title)
             
-            # Criando nova linha com colunas separadas
+            # Criar nova linha base com colunas separadas
             new_row = row[:2] + [artist, title, feat_artist] + row[3:]
+            
+            # Processar o Multiplier (coluna 7 na nova linha)
+            if '(x' in new_row[7]:
+                multiplier_match = re.search(r'\(x(\d+)\)', new_row[7])
+                if multiplier_match:
+                    new_row[7] = multiplier_match.group(1)
+            
+            # Processar Streams Change (coluna 9 na nova linha)
+            if new_row[9]:
+                new_row[9] = new_row[9].replace('+', '').replace(',', '').replace('"', '')
+            
+            # Processar 7-Day Change (coluna 11 na nova linha)
+            if new_row[11]:
+                new_row[11] = new_row[11].replace('+', '').replace(',', '').replace('"', '')
+            
             writer.writerow(new_row)
     
     print(f"Arquivo processado salvo em: {output_filepath}")

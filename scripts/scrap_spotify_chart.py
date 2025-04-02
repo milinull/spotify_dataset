@@ -1,6 +1,3 @@
-# Script para extração de dados dos Charts Globais do Spotify
-# Descrição: Realiza web scraping do site Kworb.net para coletar dados diários dos charts do Spotify
-
 import requests # type: ignore
 import csv
 import os
@@ -18,32 +15,48 @@ def fix_encoding(text):
     except UnicodeEncodeError:
         return text
 
+def split_artist_title(artist_title):
+    """
+    Separa o artista principal, o título da música e os artistas do feat.
+    """
+    match = re.match(r"^(.*?)\s*-\s*(.*?)\s*(\(w/ (.+)\))?$", artist_title)
+    
+    if match:
+        artist = match.group(1).strip()
+        title = match.group(2).strip()
+        feat_artists = match.group(4).strip() if match.group(4) else None
+        return artist, title, feat_artists
+    else:
+        return artist_title, None, None  # Caso não corresponda ao padrão
+
 def get_spotify_charts():
     """
-    Função principal que extrai os charts do Spotify:
-    - Faz scraping do site Kworb.net
-    - Extrai dados da tabela de músicas
-    - Salva informações em arquivo CSV
-    - Gera nome de arquivo com data do chart
+    Extrai os charts do Spotify, salva o CSV original e gera um CSV processado.
     """
-    # URL dos charts globais diários do Spotify
     url = "https://kworb.net/spotify/country/global_daily.html"
     
-    # Realiza requisição e parseia o HTML
+    # Faz a requisição e processa o HTML
     response = requests.get(url)
     response.raise_for_status()
     soup = BeautifulSoup(response.text, "html.parser")
     
-    # Extrai data do chart para nomear o arquivo
+    # Extrai a data do chart
     title_text = soup.find("span", class_="pagetitle").text
     date_match = re.search(r"(\d{4}/\d{2}/\d{2})", title_text)
     date_str = date_match.group(1) if date_match else "unknown_date"
-    filename = f"spotify_charts_{date_str.replace('/', '-')}.csv"
     
-    # Configura diretório para salvar o arquivo
-    save_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "../data_csv")
-    os.makedirs(save_dir, exist_ok=True)
-    filepath = os.path.join(save_dir, filename)
+    # Define diretórios e nomes de arquivos
+    base_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))  # Volta um nível para sair de "scripts/"
+    data_csv_dir = os.path.join(base_dir, "data_csv")
+    
+    original_dir = os.path.join(data_csv_dir, "original")
+    processed_dir = os.path.join(data_csv_dir, "processed")
+    
+    os.makedirs(original_dir, exist_ok=True)
+    os.makedirs(processed_dir, exist_ok=True)
+    
+    original_filepath = os.path.join(original_dir, f"spotify_charts_{date_str.replace('/', '-')}.csv")
+    processed_filepath = os.path.join(processed_dir, f"spotify_charts_{date_str.replace('/', '-')}_processed.csv")
     
     # Processa dados da tabela de charts
     table_rows = soup.find_all("tr")[1:]  # Pula cabeçalho
@@ -72,15 +85,48 @@ def get_spotify_charts():
                      streams, streams_change, week_streams, 
                      week_streams_change, total_streams])
     
-    # Salva dados em arquivo CSV
-    with open(filepath, mode="w", newline="", encoding="utf-8") as file:
+    # Salva dados em arquivo CSV original
+    with open(original_filepath, mode="w", newline="", encoding="utf-8") as file:
         writer = csv.writer(file)
         writer.writerow(["Position", "Change", "Artist and Title", "Days", 
                          "Peak", "Multiplier", "Streams", "Streams Change", 
                          "7-Day Streams", "7-Day Change", "Total Streams"])
         writer.writerows(data)
     
-    print(f"Arquivo salvo: {filepath}")
+    print(f"Arquivo original salvo em: {original_filepath}")
+
+    # Processa e salva o CSV formatado
+    process_csv(original_filepath, processed_filepath)
+
+def process_csv(input_filepath, output_filepath):
+    """
+    Lê o arquivo CSV original, separa artista e título, e salva um novo CSV formatado.
+    """
+    with open(input_filepath, mode="r", encoding="utf-8") as infile, \
+         open(output_filepath, mode="w", newline="", encoding="utf-8") as outfile:
+        
+        reader = csv.reader(infile)
+        writer = csv.writer(outfile)
+        
+        # Lendo cabeçalho original
+        header = next(reader)
+        
+        # Criando novo cabeçalho
+        new_header = ["Position", "Change", "Artist", "Title", "Feat Artist", "Days",
+                      "Peak", "Multiplier", "Streams", "Streams Change", "7-Day Streams",
+                      "7-Day Change", "Total Streams"]
+        writer.writerow(new_header)
+        
+        # Processando cada linha
+        for row in reader:
+            artist_title = row[2]  # Coluna "Artist and Title"
+            artist, title, feat_artist = split_artist_title(artist_title)
+            
+            # Criando nova linha com colunas separadas
+            new_row = row[:2] + [artist, title, feat_artist] + row[3:]
+            writer.writerow(new_row)
+    
+    print(f"Arquivo processado salvo em: {output_filepath}")
 
 # Executa script apenas quando rodado diretamente
 if __name__ == "__main__":
