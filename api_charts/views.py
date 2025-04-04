@@ -13,4 +13,5 @@ class SpotifyChartViewSet(viewsets.ReadOnlyModelViewSet):
     
     filterset_fields = ['chart_date', 'position']
     search_fields = ['artist_title']
-    ordering_fields = ['position', 'streams', 'total_streams']
+    ordering_fields = ['id','position', 'streams', 'total_streams']
+

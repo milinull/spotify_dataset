@@ -13,10 +13,10 @@ django.setup()
 from api_charts.models import SpotifyChart
 
 # Caminho do CSV
-CSV_FILE_PATH = "../data_csv/processed/spotify_charts_2025-03-31_processed.csv"
+CSV_FILE_PATH = "../data_csv/processed/spotify_charts_2025-04-02_processed.csv"
 
 # Definir uma data padrão para os dados importados (já que não existe no CSV)
-CHART_DATE = datetime.strptime("2025-03-24", "%Y-%m-%d").date()
+CHART_DATE = datetime.strptime("2025-04-02", "%Y-%m-%d").date()
 
 def limpar_numero(valor):
     """ Remove vírgulas, sinais e converte para inteiro, tratando valores vazios """
