@@ -27,3 +27,12 @@ jobs:
       env:
         DJANGO_SETTINGS_MODULE: setup.settings
       run: python scripts\scrap_spotify_chart.py
+
+    - name: Commit e push do banco atualizado
+      run: |
+        git config --global user.name "github-actions[bot]"
+        git config --global user.email "github-actions[bot]@users.noreply.github.com"
+        git add db.sqlite3
+        git commit -m "update: db.sqlite3 diário automático"
+        git push
+
