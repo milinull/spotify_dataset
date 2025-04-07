@@ -5,7 +5,7 @@ permissions:
 
 on:
   schedule:
-    - cron: '0 0 * * *'  # Todos os dias à 00:00 UTC (21:00 BRT)
+    - cron: '0 21 * * *'  # Todos os dias à 21:00 UTC (18:00 BRT)
   workflow_dispatch:      # Permite rodar manualmente também
 
 jobs:
